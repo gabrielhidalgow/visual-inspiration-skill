@@ -25,8 +25,8 @@ One reply: brief → sources → collect → look → **9 on one sheet** → sho
 - **Credit everyone, link everything.** Each number maps to a title, a creator and the original page.
 - **Never make anything up.** Every title, creator, URL and image comes from a response you retrieved in
   this run. If a creator isn't stated, say `creator not stated`. An empty slot beats a guessed name.
-- **Research scale.** 3–4 sources × 4–6 candidates, about 15–24 in total. One image per project: the one
-  where the work is the subject.
+- **Research scale.** 3–4 sources, about 30–40 candidates **as thumbnails** (cheap), and full-size
+  downloads only for the 9 picks. One image per project: the one where the work is the subject.
 - **Respect bot walls.** Behance, Dribbble and Land-book block automation (403 / bot challenge). Skip
   them. Never retry with spoofed headers, proxies, "reader" services or a browser.
 - **Tools.** Web search and web fetch for discovery; `curl` for images and raw `<meta og:*>` tags. No paid
@@ -56,33 +56,51 @@ Use **an artifact noun plus 1–2 style words** (`coffee logo`, `editorial poste
 at most about four words. Brief language ("flyer for a Sydney design meetup") matches nothing. The
 subject and location go into your direction, not the query.
 
-## Step 4 — Collect ~15–24 candidates
+## Step 4 — Collect ~30–40 candidates: curated first, ranked by relevance
 
-Work down each source's ladder in `references/sources.md` (API → listing → `site:` search → project
-page) until you have **4–6 per source**. One line each in `$W/candidates.jsonl`:
+For each source, in this order (the recipes are in `references/sources.md`):
+
+1. **The curated pass**, where the site has one: Fonts In Use staff picks
+   (`&filters=staff-picks-only`), Dieline Award winners (`&categories=148`), Best of BP&O
+   (`&categories=2439`). Identity Designed, Logobook and typo/graphic posters are editor-selected
+   throughout.
+2. **The open search**, **always with `orderby=relevance`** on WordPress sites. Their default is newest
+   first, which buries the relevant work: measured on Brand New, date order gave 0 of 8 on-subject
+   results and relevance gave 8 of 8.
+3. The `site:` web search, only when the site's own search fails.
+
+Take **8–12 per source**, dropping obvious misses by title (wrong medium, roundups, "Friday Likes"). One
+line each in `$W/candidates.jsonl`:
 
 ```json
-{"id":"c07","source":"Fonts In Use","title":"Two Bean Coffee","creator":"Two Bean Coffee","url":"https://fontsinuse.com/uses/65315/two-bean-coffee","image_url":"https://assets.fontsinuse.com/…/@2x/…"}
+{"id":"f07","source":"Fonts In Use","curated":"staff pick","title":"Two Bean Coffee","creator":"Two Bean Coffee","url":"https://fontsinuse.com/uses/65315/two-bean-coffee","thumb_url":"https://assets.fontsinuse.com/…/thumb/…/@2x/…","image_url":null}
 ```
 
-`image_url` must be a URL you saw in a response. Pre-filter on titles before downloading, so off-brief
-projects never get fetched. If a source fails, note it in one line and move on; if fewer than three
-sources produced anything, add the next best one.
+- `thumb_url` comes from the listing (Fonts In Use thumb, WP `medium_large`, og:image). `image_url`
+  (full size) can stay `null` until the item is picked, which saves opening dozens of project pages.
+- Every URL must be one you saw in a response.
+- If a source fails, note it in one line and move on. If fewer than three sources produced anything, add
+  the next best one.
 
-## Step 5 — Download and screen
+## Step 5 — Thumbnails and the review sheet
 
-Follow **`references/images.md`**: curl into `$W/cand/` (with `</dev/null` in the loop), **validate by
-MIME type, never by size**, then run the screen (resolution: 600 px long edge, or 400 for logos; near-
-duplicates).
+Follow **`references/images.md`** §1–3:
+- Download every thumbnail (with `</dev/null` in the loop).
+- **Validate by MIME type, never by size.**
+- Rasterise any SVGs.
+- Build `$W/review.jpg`, one labelled image of every candidate. Curated ones carry a yellow dot,
+  and near-duplicates are printed.
 
 ## Step 6 — Look, and pick 9
 
-Actually look. A quick labelled contact sheet of all survivors is the efficient first pass (see
-`references/contact-sheet.md` for the rasterise step), then open borderline ones individually.
+**Choose from images, not titles.** Read the review sheet, and open borderline thumbnails individually.
+A great project with a vague title ("An act of restitution") only survives this way.
 
 Pick **9** that give **range across 2–3 directions**, with no more than 4 from one source. Drop anything
 off-brief, weak, redundant, or where the work isn't the subject (storefronts, merch, portraits, stock
-mockups). Write the 9 ids, in the order to number them, to `$W/order.txt`.
+mockups). Curated status (the dot) is a tiebreaker, not a veto. Write the 9 ids, in the order to number them,
+to `$W/order.txt`. Then fetch full size for just those 9 (`images.md` §4), swapping in the next-best
+candidate if one fails.
 
 ## Step 7 — Build and show the sheet
 

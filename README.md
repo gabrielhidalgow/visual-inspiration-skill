@@ -9,8 +9,10 @@ Say *"find inspiration for a minimalist coffee brand logo"* and it:
 2. picks the **3–4 curated sources that fit the medium**: Fonts In Use, typo/graphic posters, BP&O,
    Brand New, Identity Designed, The Dieline, Logobook, Typewolf, Awwwards, SiteInspire, Minimal Gallery
    or Are.na;
-3. collects around 20 real projects with title, creator and link, and screens them;
-4. **looks at them** and picks the 9 strongest, covering 2–3 distinct directions;
+3. collects 30–40 real projects: **editors' picks first** (Fonts In Use staff picks, Dieline Award winners,
+   Best of BP&O), then relevance-ranked search, each with title, creator and link;
+4. **looks at every thumbnail** on one review sheet and picks the 9 strongest, covering 2–3 directions,
+   then fetches full size for just those 9;
 5. shows **one numbered contact sheet** in the conversation, with a short reply: 2–3 directions, a
    palette, a type note, and `n — title (creator)` links to the originals.
 

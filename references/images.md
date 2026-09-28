@@ -1,88 +1,150 @@
-# Downloading, screening and sampling images
+# Thumbnails, review, full-size fetch, palette
 
 `$W` is the working directory in the session scratchpad (SKILL.md Step 1). Everything here stays in
 `$W`, and nothing is written into the project. `UA` is the browser user agent from `references/sources.md`.
 
-## 1. Download every candidate
+The flow is **screen by image, fetch big only for the picks**: download a small thumbnail for every
+candidate (30–40 of them, cheap), look at them all on one labelled review sheet, choose 9, and only then
+fetch full-size images for those 9.
+
+## 1. Download thumbnails for every candidate
+
+Each candidate line has `thumb_url` (listing thumbnail, WP `medium_large`, or og:image) and
+`image_url` (full size, which may still be unknown for sources that need a project-page visit).
 
 ```bash
-jq -r '[.id, .image_url] | @tsv' "$W/candidates.jsonl" > "$W/dl.tsv"
-while IFS=$'\t' read -r id url; do
-  curl -sL --max-time 30 -A "$UA" -e "$(dirname "$url")/" -o "$W/cand/$id.bin" "$url" </dev/null
-done < "$W/dl.tsv"
+mkdir -p "$W/thumbs"
+# The possibly-empty field goes LAST: `read` treats consecutive tabs as one separator, so an empty middle
+# field would shift the next column into it.
+jq -r '[.id, .url, (.thumb_url // .image_url // "")] | @tsv' "$W/candidates.jsonl" > "$W/thumbs.tsv"
+while IFS=$'\t' read -r id page url; do
+  if [ -z "$url" ]; then   # no listing image (e.g. Brand New posts without featured media): use the page's og:image
+    url=$(curl -sL --max-time 20 -A "$UA" "$page" </dev/null | tr '\n' ' ' \
+      | grep -oE 'property="og:image" content="[^"]+' | head -1 | sed 's/.*content="//')
+    [ -z "$url" ] && { echo "$id — no image found on $page; dropped" >> "$W/run-log.md"; continue; }
+  fi
+  curl -sL --max-time 25 -A "$UA" -e "$(dirname "$url")/" -o "$W/thumbs/$id.bin" "$url" </dev/null
+done < "$W/thumbs.tsv"
 ```
+
+An og:image found this way is usually the full-size lead image too. Check that it isn't a generic
+site card (see `sources.md`), and write it back as the candidate's `image_url` if picked.
 
 The `</dev/null` is **load-bearing**. Inside a `while read` loop, curl otherwise eats the loop's stdin
 and the run hangs or silently skips lines.
 
-## 2. Validate by MIME type, never by size
+## 2. Validate by MIME type, never by size (use for both folders)
 
 CDNs answer missing or forbidden files with an HTML or XML error body, and curl saves it under your
 filename. A non-empty file proves nothing.
 
 ```bash
-for f in "$W/cand/"*.bin; do
-  id=$(basename "$f" .bin)
-  case "$(file -b --mime-type "$f")" in
-    image/jpeg) mv "$f" "$W/cand/$id.jpg" ;;
-    image/png)  mv "$f" "$W/cand/$id.png" ;;
-    image/webp) mv "$f" "$W/cand/$id.webp" ;;
-    image/gif)  mv "$f" "$W/cand/$id.gif" ;;
-    image/avif) mv "$f" "$W/cand/$id.avif" ;;
-    image/svg+xml) mv "$f" "$W/cand/$id.svg" ;;
-    *) echo "$id — not an image ($(file -b --mime-type "$f")); dropped" >> "$W/run-log.md"; rm "$f" ;;
-  esac
+validate() {   # $1 = folder of <id>.bin files
+  for f in "$1/"*.bin; do [ -e "$f" ] || continue
+    id=$(basename "$f" .bin)
+    case "$(file -b --mime-type "$f")" in
+      image/jpeg) mv "$f" "$1/$id.jpg" ;;  image/png)  mv "$f" "$1/$id.png" ;;
+      image/webp) mv "$f" "$1/$id.webp" ;; image/gif)  mv "$f" "$1/$id.gif" ;;
+      image/avif) mv "$f" "$1/$id.avif" ;; image/svg+xml) mv "$f" "$1/$id.svg" ;;
+      *) echo "$id — not an image ($(file -b --mime-type "$f")); dropped" >> "$W/run-log.md"; rm "$f" ;;
+    esac
+  done
+}
+validate "$W/thumbs"
+```
+
+Then rasterise any SVGs (logo marks), so the review sheet and the final sheet can show them:
+
+```bash
+mkdir -p "$W/rast"
+for f in "$W/thumbs/"*.svg "$W/cand/"*.svg; do [ -e "$f" ] || continue
+  qlmanage -t -s 1200 -o "$W/rast" "$f" >/dev/null 2>&1 \
+    || rsvg-convert -w 1200 "$f" -o "$W/rast/$(basename "$f").png"
 done
 ```
 
-A failed download is not a reason to invent a replacement URL. Try the page's `og:image` once (see
-`sources.md`); if that fails too, drop the candidate.
+## 3. Review sheet: every thumbnail, labelled, with duplicates flagged
 
-## 3. Screen: resolution and near-duplicates
+One image to look at before choosing anything. Curated candidates (staff pick, award winner) get a
+yellow dot after their id, and near-duplicates (by perceptual hash) are listed so you pick only one of each pair.
 
 ```bash
-uv run --quiet --with pillow python - "$W/cand" 600 <<'PY' > "$W/screen.tsv"
-import sys, pathlib
-from PIL import Image
-d, MIN = pathlib.Path(sys.argv[1]), int(sys.argv[2])
+uv run --quiet --with pillow python - "$W" <<'PY'
+import sys, json, pathlib
+from PIL import Image, ImageDraw, ImageFont
+W = pathlib.Path(sys.argv[1])
+meta = {json.loads(l)["id"]: json.loads(l) for l in open(W / "candidates.jsonl")}
+
+def load(f):
+    if f.suffix == ".svg":
+        f = W / "rast" / (f.name + ".png")
+    im = Image.open(f); im.seek(0); im = im.convert("RGBA")
+    return Image.alpha_composite(Image.new("RGBA", im.size, "white"), im).convert("RGB")
 
 def dhash(im, n=8):
     px = list(im.convert("L").resize((n + 1, n)).tobytes())
     return sum(1 << i for i in range(n * n) if px[(i // n) * (n + 1) + i % n] > px[(i // n) * (n + 1) + i % n + 1])
 
-rows = []
-for f in sorted(d.iterdir()):
-    if f.suffix == ".svg":
-        rows.append([f.stem, 0, 0, None, "ok-vector", f.name]); continue
-    try:
-        im = Image.open(f); im.seek(0); w, h = im.size
-    except Exception as e:
-        rows.append([f.stem, 0, 0, None, "unreadable", f.name]); continue
-    rows.append([f.stem, w, h, dhash(im), "ok" if max(w, h) >= MIN else "low-res", f.name])
+items = []
+for f in sorted((W / "thumbs").iterdir()):
+    try: items.append((f.stem, load(f)))
+    except Exception: print(f"{f.stem}: unreadable, skipped")
+hashes = {cid: dhash(im) for cid, im in items}
+ids = list(hashes)
+for i, a in enumerate(ids):
+    for b in ids[i + 1:]:
+        if bin(hashes[a] ^ hashes[b]).count("1") <= 6: print(f"near-duplicate: {a} ~ {b}")
 
-# Near-duplicates: Hamming distance <= 6 on a 64-bit dHash. Keep the larger one.
-for i, a in enumerate(rows):
-    for b in rows[i + 1:]:
-        if a[3] is None or b[3] is None or not a[4].startswith("ok") or not b[4].startswith("ok"):
-            continue
-        if bin(a[3] ^ b[3]).count("1") <= 6:
-            small, big = (a, b) if a[1] * a[2] < b[1] * b[2] else (b, a)
-            small[4] = f"dupe-of-{big[0]}"
-
-print("id\tw\th\tstatus\tfile")
-for r in rows:
-    print(f"{r[0]}\t{r[1]}\t{r[2]}\t{r[4]}\t{r[5]}")
+CELL, COLS, LABEL = 360, 6, 46
+font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 30)
+rows = -(-len(items) // COLS)
+sheet = Image.new("RGB", (COLS * CELL, rows * (CELL + LABEL)), (28, 28, 30)); d = ImageDraw.Draw(sheet)
+for k, (cid, im) in enumerate(items):
+    im.thumbnail((CELL - 12, CELL - 12)); x, y = (k % COLS) * CELL, (k // COLS) * (CELL + LABEL)
+    sheet.paste(im, (x + (CELL - im.width) // 2, y + 6 + (CELL - 12 - im.height) // 2))
+    d.text((x + 10, y + CELL + 6), cid, fill=(255, 214, 0), font=font)
+    if meta.get(cid, {}).get("curated"):                  # drawn marker: Helvetica has no ★ glyph
+        tx = x + 18 + d.textlength(cid, font=font)
+        d.ellipse([tx, y + CELL + 14, tx + 18, y + CELL + 32], fill=(255, 214, 0))
+sheet.save(W / "review.jpg", quality=80)
+print(W / "review.jpg", f"{len(items)} candidates")
 PY
-column -t "$W/screen.tsv"
 ```
 
-Use `400` instead of `600` for a logo brief. Everything with status `ok` or `ok-vector` goes on to the
-visual review in SKILL.md Step 6. Log the rest in one line each.
+Read `$W/review.jpg`, which is for you, not the user. Open any borderline candidate's thumbnail on its own
+before deciding.
 
-## 4. Sample a palette from the 9 picks
+## 4. Fetch full size for the 9 picks
 
-Run this after `$W/order.txt` holds the picks (see `contact-sheet.md`). Reference numbers come from that
-order.
+After writing the 9 ids to `$W/order.txt` (SKILL.md Step 6): if a pick has no `image_url` yet, get it from
+its project page first (the per-source recipe in `sources.md`, e.g. the Fonts In Use use page, or
+`og:image`), and record it in `candidates.jsonl`. Then:
+
+```bash
+mkdir -p "$W/cand"
+while read -r id; do
+  url=$(jq -r --arg id "$id" 'select(.id==$id) | .image_url // empty' "$W/candidates.jsonl")
+  [ -n "$url" ] && curl -sL --max-time 40 -A "$UA" -e "$(dirname "$url")/" -o "$W/cand/$id.bin" "$url" </dev/null
+done < "$W/order.txt"
+validate "$W/cand"
+uv run --quiet --with pillow python -c "
+import sys, pathlib; from PIL import Image
+W = pathlib.Path(sys.argv[1]); MIN = int(sys.argv[2])
+for cid in (W / 'order.txt').read_text().split():
+    f = next((W / 'cand').glob(cid + '.*'), None)
+    if f is None: print(cid, 'MISSING'); continue
+    if f.suffix == '.svg': print(cid, 'ok-vector'); continue
+    w, h = Image.open(f).size; print(cid, f'{w}x{h}', 'ok' if max(w, h) >= MIN else 'LOW-RES')
+" "$W" 600
+```
+
+Use `400` instead of `600` for a logo brief. For any pick that is **MISSING** or **LOW-RES**: copy its
+thumbnail into `$W/cand/` if the thumbnail itself clears the threshold. Otherwise swap in the next-best
+candidate from the review sheet and repeat for that one. Never invent a replacement URL.
+
+## 5. Sample a palette from the 9 picks
+
+Reference numbers come from the order in `$W/order.txt`.
 
 ```bash
 uv run --quiet --with pillow python - "$W" <<'PY'

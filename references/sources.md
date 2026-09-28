@@ -43,19 +43,43 @@ Watch for **generic og:images**: site-wide share cards (`social.jpg`, `og.png`, 
 (Fonts In Use's `cards.fontsinuse.com/cardshot…` overlays the typeface on the image). Reject those and
 take the real media from the page body instead.
 
-**WordPress REST search.** Several galleries run on WordPress. Its REST API returns title, link and
-featured image in one JSON call, with no HTML scraping:
+**WordPress REST search.** Several galleries run on WordPress. Its REST API returns title, link, a
+thumbnail and the full-size image in one JSON call, with no HTML scraping:
 
 ```bash
-curl -s --max-time 25 -A "$UA" "$BASE/wp-json/wp/v2/posts?search=<q>&per_page=12&_embed=wp:featuredmedia" </dev/null \
-  | jq -c '.[] | {title: .title.rendered, url: .link,
-                  image_url: (._embedded["wp:featuredmedia"][0].source_url // null)}'
+curl -s --max-time 25 -A "$UA" "$BASE/wp-json/wp/v2/posts?search=<q>&orderby=relevance&per_page=15&_embed=wp:featuredmedia$CURATED" </dev/null \
+  | sed -n '/^\[/,$p' \
+  | jq -c '.[] | ._embedded["wp:featuredmedia"][0] as $m | {title: .title.rendered, url: .link,
+      thumb_url: ($m.media_details.sizes.medium_large.source_url // $m.media_details.sizes.large.source_url // $m.source_url // null),
+      image_url: ($m.source_url // null)}'
 ```
+
+- **`orderby=relevance` is not optional.** Without it, WordPress sorts search results **by date**, so
+  the newest post containing the word wins. Measured on Brand New with `coffee`: date order gave 0 coffee
+  identities in the top 8, while relevance order gave 8 of 8, spanning 2024–2026. Add a date-ordered pass
+  only when the brief asks for what's current.
+- **`$CURATED`** is an optional category filter for that site's editorial best-of (see each site below),
+  for example `&categories=148`. Run the curated query first and the open search second.
+- `sed -n '/^\[/,$p'` strips the PHP warnings some sites (Brand New) print before the JSON.
+- `thumb_url` (about 768 px) is for the review sheet; `image_url` is fetched only for the 9 picks.
 
 Titles come back HTML-encoded (`&#8217;`), so decode them before display. A null `image_url` means
 there is no featured image; fall back to `og` on the post URL. The **creator is usually in the title**
 ("… by Pentagram", "New Identity for X by TEMPLO"). If it isn't, read it from the post body with web
 fetch. Never infer it.
+
+**Curated signals, cheapest quality filter available.** None of these sites expose popularity, but
+several mark editorial picks. Use them first, then widen:
+
+| Site | Curated filter | Size |
+|---|---|---|
+| Fonts In Use | `&filters=staff-picks-only` on search | about 15% of uses |
+| The Dieline | `&categories=148` (Dieline Award winners) | 776 posts |
+| BP&O | `&categories=2439` (The Best of BP&O) | 85 posts: small, so often empty for niche queries |
+| Identity Designed, Logobook, typo/graphic posters | the whole site is editor-selected | — |
+
+Record `"curated": "<signal>"` on candidates that came through one. At the pick step it is a tiebreaker,
+not a veto: a strong uncurated reference still beats a weak award winner.
 
 **`site:` fallback.** When a listing page fails, run web search `site:<domain> <artifact noun> <style>`.
 Keep only results that are individual project pages (not search, tag or "hire" pages). Then use `og` or
@@ -71,6 +95,12 @@ web fetch on each.
   `href="/uses/<id>/<slug>"`, `__headline">Title`, `__date">Year`, `__designers"><li>Name</li>…` and a
   `fiu-sampleList` of `/typefaces/<id>/<slug>"><img … alt="Typeface">`. Split the HTML on
   `class="fiu-galleryItem"` and regex each chunk. Pick from this list, then open only the picks.
+- **Staff picks first:** `https://fontsinuse.com/search?terms=<q>&filters=staff-picks-only` returns only
+  uses the editors starred (64 of 370 for `wine`). In any listing, staff picks carry
+  `fiu-badge--staff_pick` in their block. (The filter link is base64-encoded in the page's
+  `data-js-link`, which is why it isn't obvious.)
+- **Listing thumbnails** (`…/thumb/<hash>/@2x/…`, about 440 px) are fine for the review sheet. Only open
+  the use page for the 9 picks.
 - **Query words:** plain event nouns work (`design conference`, `design event poster`). Results rank by
   text match, so expect websites, logos and books mixed in; filter titles before opening pages.
 - **Format listings:** `https://fontsinuse.com/in/2/formats/<id>/<name>`, for example `12/posters-flyers`,
@@ -81,7 +111,7 @@ web fetch on each.
   `assets.fontsinuse.com/use-media/<n>/upto-700xauto/<hash>/@2x/jpeg/<file>.jpeg` and
   `assets.fontsinuse.com/static/use-media-items/<a>/<b>/upto-700xauto/<hash>/@2x/<k>.png`.
   Regex: `https://assets\.fontsinuse\.com/(?:static/use-media-items|use-media)/[^" ]*?/upto-700xauto/[^/]+/@2x/[^" ]+?\.(?:jpe?g|png)`.
-  The first match is the lead image. Listing thumbs (`/thumb/…/@2x/…`) are only about 440 px, too small.
+  The first match is the lead image, and the one to use on the final sheet.
 - **Creator:** on the use page, `href="/designers/<id>/<slug>" title="View all Uses filed under <Name>"`.
   Read the name from the `title` attribute; the link text is wrapped in spans. Some uses list none.
 - **Typefaces:** take them from the search-listing block, **not** the use page. The use page also carries
@@ -129,8 +159,9 @@ web fetch on each.
 ### BP&O — bpando.org — **reliable**
 - WordPress REST works: `BASE=https://bpando.org`. Titles often name the studio ("Studio South merges …");
   when they don't, the post slug usually does (`…-branding-by-studio-mut`).
-- Search is fuzzy: `coffee` returned 3 coffee brands in 20. Filter titles and links before downloading.
-- Listing thumbnails are 150×150 crops; always use the featured image or og:image.
+- With `orderby=relevance`, `coffee` returns 8 of 8 coffee brands (2017–2026). Date order returned 3 in 20.
+- Curated: `&categories=2439` (The Best of BP&O, 85 posts). Try it first; it is often empty for niche subjects.
+- The HTML listing thumbnails are 150×150 crops; use the REST `medium_large` size for review.
 
 ### Brand New — underconsideration.com/brandnew — **reliable**
 - WordPress REST works: `BASE=https://www.underconsideration.com/brandnew`. Titles follow the pattern
@@ -138,8 +169,11 @@ web fetch on each.
 - Some posts have no featured media: fall back to `og` on the post page.
 - **The REST response starts with PHP warnings** (`<b>Warning</b>: Undefined variable…`) before the
   JSON, so pipe it through `sed -n '/^\[/,$p'` before `jq`.
-- Search is loose, and whole-word matching is absent: `coffee` returned 1 coffee identity in 15 (the rest
-  were "Friday Likes" roundups). Expect low yield for niche subjects.
+- Lead images are usually **before/after comparisons** (old logo left, new right). They're useful, but say
+  which side is the new one in the reply.
+- **Use `orderby=relevance`.** Date order returned 1 coffee identity in 15 (the rest were "Friday Likes"
+  roundups); relevance returned 8 of 8. Drop titles starting `Friday Likes` or `Noted` roundups anyway.
+- No usable curated filter: the `bnawards` tag holds award roundups, not individual projects.
 
 ### Identity Designed — identitydesigned.com — **reliable**
 - WordPress REST works: `BASE=https://identitydesigned.com`. Titles are the client name only. The credit
@@ -155,6 +189,9 @@ web fetch on each.
 ### The Dieline — thedieline.com — **reliable**
 - WordPress REST works: `BASE=https://thedieline.com`. Featured images reach about 2000 px. Agency
   credits are in the post body.
+- Curated: `&categories=148` (Dieline Award winners, 776 posts). It combines with search and relevance
+  (`search=wine&categories=148` returns award-winning wine packaging, 2021–2024). Year categories also
+  exist (`dieline-awards-2018`…).
 - Titles usually lead with the **brand**, not the designer ("Thorn & Burrow Pours Pop Art…"). Take the
   designer from the title only when it says so ("Hey Studio Designs…") or from the slug
   (`…-lillalab-creative`); otherwise say creator not stated.

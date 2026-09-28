@@ -18,9 +18,9 @@ The symlink means both paths are the same file, so an edit is live on the next i
 non-automatic step is a stale clone: pull first if you edited elsewhere.
 
 ```
-SKILL.md                    the workflow: brief → sources → collect → look → 9 on one sheet → short reply
+SKILL.md                    the workflow: brief → sources → collect (curated first) → review thumbs → 9 → sheet → reply
 references/sources.md       medium→source table + measured per-site behaviour and extraction recipes
-references/images.md        download, MIME validation, screening (size + dHash dedupe), palette sampling
+references/images.md        thumbnails, MIME validation, review sheet (dHash dupes), full-size for picks, palette
 references/contact-sheet.md SVG rasterise + the 3×3 numbered sheet script
 ```
 
@@ -46,7 +46,7 @@ confirm it created **no files there**. For sheet or layout changes, rebuild from
 session scratchpad instead of fetching again.
 
 Extract scripts from the reference files rather than retyping them. Each file's `<<'PY'` blocks, in
-order, are: images.md → screen, palette; contact-sheet.md → sheet.
+order, are: images.md → review sheet, palette; contact-sheet.md → final sheet.
 
 ```bash
 python3 -c "import re,pathlib,sys;b=re.findall(r\"<<'PY'[^\n]*\n(.*?)\nPY\n\",pathlib.Path(sys.argv[1]).read_text(),re.S);[pathlib.Path(f'/tmp/snip{i}.py').write_text(x) for i,x in enumerate(b)]" references/images.md
@@ -68,6 +68,13 @@ site, not a crawl.
 - **Validate by MIME type, never by size.**
 
 ## Gotchas already paid for
+
+- **WordPress REST search sorts by date unless told otherwise.** Always `orderby=relevance`: on Brand New
+  `coffee`, date order gave 0/8 relevant and relevance gave 8/8. Missing this made BP&O and Brand New look
+  like weak sources in the first runs, when they weren't.
+- **Fonts In Use's staff-picks filter is `&filters=staff-picks-only`**, hidden in a base64 `data-js-link`.
+- **Choosing from titles misses good work.** Candidates are now picked from a thumbnail review sheet, and
+  full-size images are fetched only for the 9 picks.
 
 - **Fonts In Use has two media URL shapes** (`use-media/…` and `static/use-media-items/…`). Matching only
   one silently loses about 70% of images.

@@ -12,17 +12,11 @@ That file is the single source of numbering: the sheet and the `n — title (cre
 For a "more like N" round, **append** the new ids and pass `start_n` (10, then 19…), so numbers never
 collide.
 
-## Rasterise SVGs first
+## SVG picks
 
-```bash
-mkdir -p "$W/rast"
-for f in "$W/cand/"*.svg; do [ -e "$f" ] || continue
-  qlmanage -t -s 1200 -o "$W/rast" "$f" >/dev/null 2>&1 \
-    || rsvg-convert -w 1200 "$f" -o "$W/rast/$(basename "$f").png"
-done
-```
-
-`qlmanage` (macOS Quick Look) writes `<name>.svg.png`. The script below looks there for any `.svg` pick.
+SVGs are rasterised into `$W/rast/<id>.svg.png` by the step in `images.md` §2 (macOS `qlmanage`,
+falling back to `rsvg-convert`). Rerun that loop if a full-size SVG arrived after the review step. The
+script below reads any `.svg` pick from there.
 
 ## Build the sheet
 
