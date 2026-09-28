@@ -4,13 +4,13 @@
     "name": "Gabriel Hidalgo Witker"
   },
   "metadata": {
-    "description": "Credited visual design references and a local reference board for any design brief",
+    "description": "Quick, credited visual references for a design brief, shown as one inline contact sheet",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "visual-inspiration",
-      "description": "Finds 12–20 strong, credited references for a design brief (logos, identity, posters, packaging, type, web, app, social) from the 3–5 best-fit curated sources, downloads them locally and builds an HTML reference board with recurring patterns, creative directions, palette and type direction. Free sources only: no API keys, no logins.",
+      "description": "Finds the 9 strongest credited references for a design brief (logos, identity, posters, packaging, type, web, social) from the 3–4 best-fit curated sources and shows them as one numbered contact sheet in the conversation, with a short direction and links. Writes nothing into your project. Free sources only: no API keys, no logins.",
       "source": "./",
       "strict": false,
       "skills": [

@@ -1,170 +1,127 @@
 ---
 name: visual-inspiration
-description: Find strong visual and graphic design references for a design task and build a local HTML reference board with an analysis. Covers logos, brand identities, flyers and posters, packaging, typography, illustration, websites, mobile/app UI and social graphics. Picks the 3–5 best-fit curated sources for the medium (Fonts In Use, typo/graphic posters, BP&O, Brand New, Identity Designed, The Dieline, Awwwards, SiteInspire, Minimal Gallery, Are.na and others), downloads 12–20 credited references into ./inspiration/<slug>/, and writes board.html with recurring patterns, 3–5 creative directions, and a palette and type direction. Use when asked to "find inspiration for", "find references for a logo / flyer / poster / packaging / website / app", "make a moodboard for", "build a reference board", or "what are good examples of" a design piece. For Pinterest specifically, use the pinterest skill; for app screens and UX flows, use the Mobbin MCP or refero-design.
+description: Quick, credited visual references for a design task, shown in the session. Picks the 3–4 curated sources that fit the medium (Fonts In Use, typo/graphic posters, BP&O, Brand New, Identity Designed, The Dieline, Logobook, Awwwards, SiteInspire, Minimal Gallery, Are.na and others), chooses the 9 strongest references, and shows them as one numbered contact sheet in the conversation with a short direction (2–3 directions, palette, type) and credited links. Writes nothing into the project. Covers logos, brand identities, flyers and posters, packaging, typography, illustration, websites and social graphics. Use when asked to "find inspiration for", "find references for a logo / flyer / poster / packaging / website", "moodboard for", or "what are good examples of" a design piece. For Pinterest specifically, use the pinterest skill; for app screens and UX flows, use the Mobbin MCP or refero-design.
 license: MIT
-compatibility: Needs web search and web fetch tools, a shell with bash, curl, jq and file, and uv (or any Python 3 with Pillow), plus open network access. Not usable in the Claude chat sandbox, which has no network access.
+compatibility: Needs web search and web fetch tools, a shell with bash, curl, jq and file, and uv (or any Python 3 with Pillow), plus open network access. SVG rasterising uses macOS qlmanage or rsvg-convert. Not usable in the Claude chat sandbox, which has no network access.
 ---
 
 # Visual inspiration
 
-**Purpose: a credited, curated reference board for a design brief, and a point of view on it.** Twelve to
-twenty strong references from the sources designers actually trust. You say what they have in common and
-which directions they open up, so the user starts designing from a position instead of a blank page.
+**Purpose: visual grounding for the work in progress, fast.** Nine strong, credited references from the
+sources designers trust, on one sheet, with just enough direction to act on, so the project moves
+straight on.
 
-One pass: brief → pick sources → collect → download → look → keep the best → board + analysis.
+One reply: brief → sources → collect → look → **9 on one sheet** → short direction + links.
 
 ## Boundaries — read once, apply always
 
-- **Inspiration, not copying.** Every reference is third-party copyrighted work. It informs direction.
-  It is never traced, never shipped inside a deliverable, and never fed to an image generator as a
-  style target. Directions describe principles ("oversized condensed grotesk bleeding off two edges"),
-  never "do what X did".
-- **Credit everyone, link everything.** Every card carries the creator (or studio) and the original page.
-- **Never make anything up.** Every title, creator, URL and image in the board comes from a page or API
-  response you actually retrieved in this run. If a creator is not stated, write `Creator not stated`
-  and say where it came from (for example "saved to Are.na by …"). An empty slot beats a guessed name.
-- **Images stay local.** The board is a file on disk. Never publish it as an Artifact, upload it, or host
-  it: it embeds other people's work.
-- **This skill writes into the project, on purpose.** Output goes to `./inspiration/<slug>/` because the
-  board is meant to be reopened while designing. Nothing else in the project is touched.
-- **Research scale.** Three to five sources, one pass, around 30–40 candidates. No crawling, no
-  scheduled runs.
-- **Respect bot walls.** Some sites (Behance, Dribbble, Land-book) answer automated requests with a 403
-  or a bot challenge. Log it and move on. Never retry with spoofed headers, proxies, third-party
-  "reader" services or a browser to get past a block.
-- **Tools.** Web search and web fetch do the discovery. `curl` downloads images and reads a page's
-  raw `<meta og:*>` tags when web fetch's summary drops them. No paid APIs, no API keys, no logins.
+- **Nothing is written into the project.** Candidates, rejects and the sheet all live in the session
+  scratchpad. No reference folder, no HTML, no markdown. The deliverable is your reply.
+- **9 references, one sheet, direction in the same reply.** Don't stop to ask which images they like;
+  they can say "more like 4" afterwards.
+- **Inspiration, not copying.** Every reference is third-party copyrighted work. It informs direction,
+  and is never traced, never shipped inside a deliverable, and never fed to an image generator as a
+  style target. Describe principles, never "do what X did".
+- **Credit everyone, link everything.** Each number maps to a title, a creator and the original page.
+- **Never make anything up.** Every title, creator, URL and image comes from a response you retrieved in
+  this run. If a creator isn't stated, say `creator not stated`. An empty slot beats a guessed name.
+- **Research scale.** 3–4 sources × 4–6 candidates, about 15–24 in total. One image per project: the one
+  where the work is the subject.
+- **Respect bot walls.** Behance, Dribbble and Land-book block automation (403 / bot challenge). Skip
+  them. Never retry with spoofed headers, proxies, "reader" services or a browser.
+- **Tools.** Web search and web fetch for discovery; `curl` for images and raw `<meta og:*>` tags. No paid
+  APIs, keys or logins.
 
-## Step 1 — Clarify the brief, without an interview
+## Step 1 — Brief, without an interview
 
-From the request, pull out:
-
-- **Medium** — what is being designed: logo, identity, poster/flyer, packaging, type, illustration, web,
-  app, social.
-- **Style keywords** — 2–4 mood or style words ("bold", "editorial", "brutalist", "warm minimal").
-- **Industry or subject** — "design meetup", "coffee roaster", "fintech".
-- **Constraints** — colours, formats, must-haves.
-
-If the brief is vague, infer sensible keywords from what is given and say so. Ask a question only if the
-**medium** genuinely cannot be inferred. State the brief back in one line and derive a short
-kebab-case slug (`editorial-flyer-sydney-design-meetup`).
+Pull out the **medium** (logo, identity, poster/flyer, packaging, type, illustration, web, social), 2–3
+**style words**, the **subject or industry**, and any **constraints**. If it's vague, infer and say so.
+Ask only if the medium truly can't be inferred. If there's a project in progress, anchor to it: what the
+reference is *for*.
 
 ```bash
-OUT="./inspiration/<slug>"; W="<scratchpad>/visual-inspiration/<slug>"
-mkdir -p "$OUT/images" "$W/cand"
+W="<scratchpad>/visual-inspiration/<slug>"; mkdir -p "$W/cand"
 ```
 
-`$W` is working space for candidates and rejects, and is never inside the project. Use the host's session
-scratchpad; fall back to `mktemp -d`. Only kept images and the board land in `$OUT`.
+Use the host's session scratchpad; fall back to `mktemp -d`. Never write inside the project.
 
-## Step 2 — Pick 3–5 sources for the medium
+## Step 2 — Pick 3–4 sources
 
-Use the medium table in **`references/sources.md`**. It also records how each source actually behaves
-when fetched: which have an API, which need web search, and which block. Choose the 3–5 that fit the
-brief best, not all of them. Prefer sources marked **reliable**, and add one **fallback-only** source at
-most. Say which you picked in one line.
+Use the medium table in **`references/sources.md`**, which also records how each site actually behaves
+(API, web search only, or blocked). Prefer sources marked **reliable**. Mobbin is out of scope.
 
-Mobbin is out of scope; the user runs it separately.
+## Step 3 — Queries
 
-## Step 3 — Build queries
+Use **an artifact noun plus 1–2 style words** (`coffee logo`, `editorial poster`, `wine label minimal`),
+at most about four words. Brief language ("flyer for a Sydney design meetup") matches nothing. The
+subject and location go into your direction, not the query.
 
-Use one query per source, in the language people tag with: **an artifact noun plus 1–2 style words**
-(`editorial poster`, `typographic event poster`, `coffee packaging minimal`). Past about four words,
-matching degrades. Adjective soup with no artifact noun (`bold modern clean`) returns noise. Brief
-language (`flyer for a Sydney design meetup`) matches nothing, because nobody tags their work that way.
-Put the subject and location into the analysis, not the query.
+## Step 4 — Collect ~15–24 candidates
 
-Run a second, adjacent query on a strong source only if the first comes back thin.
-
-## Step 4 — Collect candidates
-
-For each chosen source, work down its ladder in `references/sources.md` (API → listing page →
-`site:` web search → project pages) until you have **6–12 candidates from that source**. Record each one
-as a line of `$W/candidates.jsonl`:
+Work down each source's ladder in `references/sources.md` (API → listing → `site:` search → project
+page) until you have **4–6 per source**. One line each in `$W/candidates.jsonl`:
 
 ```json
-{"id":"c07","source":"Fonts In Use","title":"park:session poster","creator":"Maa Luvs","creator_url":"https://fontsinuse.com/designers/4527/maa-luvs","url":"https://fontsinuse.com/uses/10326/park-session-poster-1","image_url":"https://assets.fontsinuse.com/use-media/…/@2x/…jpeg"}
+{"id":"c07","source":"Fonts In Use","title":"Two Bean Coffee","creator":"Two Bean Coffee","url":"https://fontsinuse.com/uses/65315/two-bean-coffee","image_url":"https://assets.fontsinuse.com/…/@2x/…"}
 ```
 
-- `url` is the project page on the source site. `image_url` must be a URL you saw in a response. If you
-  only have the project page, curl it for `og:image` (the recipe is in `references/sources.md`).
-- When web fetch is used for extraction, ask it for **exact URLs as they appear**, and treat any URL it
-  returns as a claim to verify: the download step checks it.
-- **If a source fails** (403, bot challenge, empty JS shell, zero results), write one line to
-  `$W/run-log.md` (`Behance — 403 on search and project pages; skipped`) and go to the next source.
-  Never stop the run for one source. If fewer than three sources produced anything, add the next best
-  source from the table.
+`image_url` must be a URL you saw in a response. Pre-filter on titles before downloading, so off-brief
+projects never get fetched. If a source fails, note it in one line and move on; if fewer than three
+sources produced anything, add the next best one.
 
-## Step 5 — Download and screen mechanically
+## Step 5 — Download and screen
 
-Follow **`references/images.md`**:
+Follow **`references/images.md`**: curl into `$W/cand/` (with `</dev/null` in the loop), **validate by
+MIME type, never by size**, then run the screen (resolution: 600 px long edge, or 400 for logos; near-
+duplicates).
 
-1. Download every candidate to `$W/cand/<id>.<ext>` with curl (browser UA, `</dev/null` in the loop).
-2. **Validate by MIME type, never by size.** CDNs return HTML or XML error bodies under image names.
-3. Run the screening script. It reports dimensions, drops anything whose long edge is under **600 px**
-   (400 px for logos) and flags near-duplicates by perceptual hash. Keep the higher-resolution copy of
-   each duplicate pair.
+## Step 6 — Look, and pick 9
 
-## Step 6 — Look at every survivor, and choose
+Actually look. A quick labelled contact sheet of all survivors is the efficient first pass (see
+`references/contact-sheet.md` for the rasterise step), then open borderline ones individually.
 
-Actually view each surviving image. This is the curation step. Its quality decides whether the board is
-worth opening. For a first pass over 30–40 candidates, a labelled contact sheet (12 per sheet, with ids
-under each image) is efficient. Then open the likely keepers individually, so labels describe what is
-really there.
+Pick **9** that give **range across 2–3 directions**, with no more than 4 from one source. Drop anything
+off-brief, weak, redundant, or where the work isn't the subject (storefronts, merch, portraits, stock
+mockups). Write the 9 ids, in the order to number them, to `$W/order.txt`.
 
-Keep **12–20**. Drop anything that is:
+## Step 7 — Build and show the sheet
 
-- **off-brief** — wrong medium, or a mockup or stock template instead of real work;
-- **weak** — generic, dated in a way that doesn't serve the brief, or illegible at board size;
-- **redundant** — a third near-identical take on the same idea;
-- **not the work** — a site banner, a portrait of the designer, a typeface specimen instead of a use.
+Build it with **`references/contact-sheet.md`** (3×3, numbered, SVG and transparent marks on white), then
+**show it inline**: in Claude Code, `SendUserFile` with `display: render` on `$W/sheet.jpg`. If the host
+can't display images, print the path. Never proceed as though the user has seen it.
 
-Aim for **range within the brief**: the set should support several distinct directions, not twenty
-variations of one. Write a factual one-line label for each keeper ("two-colour condensed-type poster,
-type bleeding off three edges"), and cap any single source at about 40% of the board.
+## Step 8 — The reply: short, in the same message as the sheet
 
-Copy the keepers into `$OUT/images/` as `NN-source-slug.ext` (numbered in board order, grouped loosely
-by direction).
+Sample the palette with the script in `references/images.md` (on the 9 picks), then write only this:
 
-## Step 7 — Analyse
+```
+**Brief:** minimalist coffee brand logo (roaster/café inferred)
 
-Sample the palette with the script in `references/images.md` (run on the kept images). Then write:
+**Directions**
+- **Bean as letterform:** a bean doing structural work inside the initial (1, 2, 3)
+- **Quiet spaced wordmark:** one colour, wide-tracked caps, no symbol (4, 5, 6)
+- **Monogram roundel:** initials in a thin-line circle, used as a stamp (7, 8)
 
-- **Recurring patterns** — one or two sentences each for **layout, type, colour, composition, texture,
-  motion** (motion only where the medium has it; say "n/a — static print" otherwise). Cite reference
-  numbers.
-- **3–5 creative directions** — distinct, not variations of each other. Each gets a short name, 2–3
-  sentences on what it is and why it suits this brief, and the reference numbers that support it. Every
-  direction needs at least two references.
-- **Palette** — 5–7 hex values with role and rough proportion, each traced to the references it came
-  from. Label them **sampled, approximate**.
-- **Type direction** — classification, weight, width, case, spacing and hierarchy. Name a typeface only
-  when a source names it (Fonts In Use does) or it is unmistakable. Otherwise describe it, and suggest
-  2–3 comparable families as options, clearly labelled as suggestions.
-- **What this set can't tell you** — gaps: sources that failed, a missing medium, few examples of a
-  direction.
+**Palette** (approx.): `#0A0A0A` · `#F9F9F7` · `#E2D5BD` · `#0D4FA0`
+**Type:** wide-tracked caps in slab, mono or geometric sans; Fonts In Use names TT Fors (4), FK Grotesk (6)
 
-## Step 8 — Build the board
+1 — [Danesi](url) (Sergio Salaroli)
+2 — [Café Palheta](url) (creator not stated)
+…
+9 — [Canyon Coffee](url) (Studio L'Ami)
 
-Write `$OUT/refs.json` using the schema in **`references/board.md`**, then run the generator from that
-file. It writes `$OUT/board.html`: the analysis up top, palette swatches, direction cards linking to their
-references, then a responsive grid of numbered cards (image, title, creator, link to the original). It
-works offline with relative image paths and supports light and dark mode.
+Say **more like 4** and I'll search around it.
+```
 
-Check it before delivering. Open the board in a browser or preview pane if the host has one, and confirm
-every image renders and the numbers match the analysis.
+- Keep each direction to one line citing numbers, with at least 2 references per direction.
+- Name a typeface only when a source names it (Fonts In Use does), or it is unmistakable.
+- Add one line for failed sources **only if one failed and it matters** (e.g. "Behance blocked, so the
+  set leans European").
+- Then connect the direction to the actual files or components in play, and carry on with the work if
+  that was asked. Don't wait for approval of the direction.
 
-## Step 9 — Deliver
+## Step 9 — "More like N"
 
-1. **Show the board** by whatever mechanism the host provides for displaying a local file. In Claude Code
-   that is `SendUserFile` with `display: render` on `board.html`. If the host cannot display files, print
-   the absolute path. Never proceed as though the user has seen it.
-2. **In chat, in the same reply**: the one-line brief, the patterns, the directions (with reference
-   numbers), the palette and the type direction. Keep it scannable.
-3. **References** as `n — title (creator)` links to the original pages, never bare numbers.
-4. **Run log** — one line per source that failed or was skipped, and why.
-5. Offer one next step: "say **more like 4** or **push direction B** and I'll search around it."
-
-**"More like 4"**: search again from that reference's own source, creator or tags (the designer's other
-work, the same Fonts In Use typeface, the Are.na channel it was saved to). Continue numbering from the
-current high-water mark and regenerate the board with the added cards.
+Search from that reference's own context: the designer's other work, the same Fonts In Use typeface, the
+Are.na channel it was saved to, or the same Logobook category. Append the new ids to `order.txt`, build a
+second sheet with `start_n` 10 (then 19…), and reply in the same short format.

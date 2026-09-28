@@ -1,7 +1,7 @@
 # Downloading, screening and sampling images
 
-`$W` is the working directory in the session scratchpad and `$OUT` is `./inspiration/<slug>`. Both are
-set in SKILL.md Step 1. `UA` is the browser user agent from `references/sources.md`.
+`$W` is the working directory in the session scratchpad (SKILL.md Step 1). Everything here stays in
+`$W`, and nothing is written into the project. `UA` is the browser user agent from `references/sources.md`.
 
 ## 1. Download every candidate
 
@@ -79,33 +79,21 @@ column -t "$W/screen.tsv"
 Use `400` instead of `600` for a logo brief. Everything with status `ok` or `ok-vector` goes on to the
 visual review in SKILL.md Step 6. Log the rest in one line each.
 
-## 4. Keep: copy the chosen images into the project
+## 4. Sample a palette from the 9 picks
 
-After viewing the survivors, write the keepers in board order to `$W/keep.tsv` as `n<TAB>id<TAB>slug`,
-then:
-
-```bash
-while IFS=$'\t' read -r n id slug; do
-  src=$(ls "$W/cand/$id".* | head -1); ext="${src##*.}"
-  src_name=$(jq -r --arg id "$id" 'select(.id==$id) | .source' "$W/candidates.jsonl" \
-    | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/-$//')
-  cp "$src" "$OUT/images/$(printf %02d "$n")-$src_name-$slug.$ext"
-done < "$W/keep.tsv"
-```
-
-Rejects stay in the scratchpad. The project only gets what is on the board.
-
-## 5. Sample a palette from the kept images
+Run this after `$W/order.txt` holds the picks (see `contact-sheet.md`). Reference numbers come from that
+order.
 
 ```bash
-uv run --quiet --with pillow python - "$OUT/images" <<'PY'
-import sys, pathlib, re
+uv run --quiet --with pillow python - "$W" <<'PY'
+import sys, pathlib
 from PIL import Image
-d = pathlib.Path(sys.argv[1])
+W = pathlib.Path(sys.argv[1])
+order = [l.strip() for l in (W / "order.txt").read_text().split() if l.strip()]
 clusters = []   # [r, g, b, weight, set(ref numbers)]
-for f in sorted(d.iterdir()):
-    if f.suffix.lower() == ".svg": continue
-    n = int(re.match(r"(\d+)", f.name).group(1))
+for n, cid in enumerate(order, 1):
+    f = next((W / "cand").glob(f"{cid}.*"))
+    if f.suffix == ".svg": continue                      # vector marks are flat ink; name their colour by eye
     im = Image.open(f).convert("RGB"); im.thumbnail((160, 160))
     q = im.quantize(colors=6, method=Image.Quantize.MEDIANCUT)
     pal, total = q.getpalette(), im.width * im.height
@@ -120,13 +108,12 @@ for f in sorted(d.iterdir()):
         else:
             clusters.append([r, g, b, share, {n}])
 clusters.sort(key=lambda c: -c[3])
-for r, g, b, w, refs in clusters[:12]:
+for r, g, b, w, refs in clusters[:10]:
     print(f"#{r:02X}{g:02X}{b:02X}\tweight {w:.2f}\trefs {sorted(refs)}")
 PY
 ```
 
-This gives candidates, not the answer. Pick 5–7 that describe the set: usually one or two grounds, one
-or two ink colours, and one or two accents that recur across **several** references (a colour that
-appears in only one image is that image's palette, not the set's). Give each a role and rough
-proportion, and label the palette **sampled, approximate**. JPEG re-encoding shifts gradients and photos
-more than flat graphic colour.
+This gives candidates, not the answer. Pick **4–6** that describe the set: a ground, an ink, and accents
+that recur across **several** references (a colour in only one image is that image's palette, not the
+set's). Label them **approximate**. JPEG re-encoding shifts gradients and photos more than flat graphic
+colour.

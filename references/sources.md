@@ -99,7 +99,7 @@ web fetch on each.
   typo/graphic posters`, and `og:image` is `https://images.typographicposters.com/poster/<designer>/…jpg`
   at full size. Parse the creator from the title.
 - Designer pages have og:image set to a studio cover, not a poster, so use them only to find poster links.
-- Poster images are about **560×800**: enough for the board, under Fonts In Use's 1400. `" for <X>"` at
+- Poster images are about **560×800**: enough for a sheet, under Fonts In Use's 1400. `" for <X>"` at
   the end of an og:title names the client or organiser, not a designer; strip it from the creator. The URL's
   first path segment is the designer's profile (`/studiodobra`), except for organiser accounts such as
   `/100besteplakate` or `/weltformat`.
@@ -155,6 +155,9 @@ web fetch on each.
 ### The Dieline — thedieline.com — **reliable**
 - WordPress REST works: `BASE=https://thedieline.com`. Featured images reach about 2000 px. Agency
   credits are in the post body.
+- Titles usually lead with the **brand**, not the designer ("Thorn & Burrow Pours Pop Art…"). Take the
+  designer from the title only when it says so ("Hey Studio Designs…") or from the slug
+  (`…-lillalab-creative`); otherwise say creator not stated.
 
 ### Logobook — logobook.com — **reliable, marks only**
 - Search: `https://logobook.com/?s=<q>`. Categories: `/letter/<x>/`, `/shape/<name>/`, `/object/<x>/`,
@@ -162,8 +165,8 @@ web fetch on each.
 - Logo pages (`/logo/<slug>/`) credit `<a href="…/designer/<slug>/">Name</a>` (about half have none).
   The mark itself is **not in an `<img>`**: take it from the JSON-LD, `"contentUrl":"…/uploads/…_logo.svg"`.
 - Marks are black SVGs on transparent. The screen passes them as `ok-vector`; to view them, rasterise
-  with `qlmanage -t -s 900 -o <dir> *.svg` (macOS) or `rsvg-convert`. The board puts SVG/PNG on a white
-  panel so they stay visible in dark mode.
+  with `qlmanage -t -s 900 -o <dir> *.svg` (macOS) or `rsvg-convert`. The sheet composites SVG/PNG onto a white
+  ground so they stay visible.
 - The collection skews mid-century European. It is excellent for reduced symbol logic, not for current
   trends.
 
