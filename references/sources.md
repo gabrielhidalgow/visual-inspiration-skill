@@ -127,17 +127,28 @@ web fetch on each.
 - Download `image.large.url`: `original` files run to 10–20 MB.
 
 ### BP&O — bpando.org — **reliable**
-- WordPress REST works: `BASE=https://bpando.org`. Titles often name the studio ("Studio South merges …").
+- WordPress REST works: `BASE=https://bpando.org`. Titles often name the studio ("Studio South merges …");
+  when they don't, the post slug usually does (`…-branding-by-studio-mut`).
+- Search is fuzzy: `coffee` returned 3 coffee brands in 20. Filter titles and links before downloading.
 - Listing thumbnails are 150×150 crops; always use the featured image or og:image.
 
 ### Brand New — underconsideration.com/brandnew — **reliable**
 - WordPress REST works: `BASE=https://www.underconsideration.com/brandnew`. Titles follow the pattern
   `New Logo and Identity for <Client> by <Studio>`.
 - Some posts have no featured media: fall back to `og` on the post page.
+- **The REST response starts with PHP warnings** (`<b>Warning</b>: Undefined variable…`) before the
+  JSON, so pipe it through `sed -n '/^\[/,$p'` before `jq`.
+- Search is loose, and whole-word matching is absent: `coffee` returned 1 coffee identity in 15 (the rest
+  were "Friday Likes" roundups). Expect low yield for niche subjects.
 
 ### Identity Designed — identitydesigned.com — **reliable**
-- WordPress REST works: `BASE=https://identitydesigned.com`. Titles are the client name only, so get the
-  studio from the post body (web fetch: "who designed this?").
+- WordPress REST works: `BASE=https://identitydesigned.com`. Titles are the client name only. The credit
+  is consistent in the post HTML: `Designed by <a href="<studio url>">Studio</a>, City`, so regex the
+  `<a>` right after "Designed by". Don't regex the tag-stripped text: inline CSS precedes it and a lazy
+  match swallows the stylesheet.
+- Each post has 10–30 images. The first few are usually the logo and hero applications. Every post also
+  embeds the **same 300×357 site-wide image** (drop it by size, which the screen does). Skip `-NNNxNNN.`
+  resized variants.
 - Images named `…-low.jpg` are 600 px. Try the same URL without `-low` for a larger file, and keep it if
   it validates.
 
@@ -148,8 +159,13 @@ web fetch on each.
 ### Logobook — logobook.com — **reliable, marks only**
 - Search: `https://logobook.com/?s=<q>`. Categories: `/letter/<x>/`, `/shape/<name>/`, `/object/<x>/`,
   `/nature/<x>/`, `/business/<industry>/`.
-- Logo pages (`/logo/<slug>/`) credit `<a href="…/designer/<slug>/">Name</a>`. Marks are small or
-  vector, so screen them at the 400 px logo threshold.
+- Logo pages (`/logo/<slug>/`) credit `<a href="…/designer/<slug>/">Name</a>` (about half have none).
+  The mark itself is **not in an `<img>`**: take it from the JSON-LD, `"contentUrl":"…/uploads/…_logo.svg"`.
+- Marks are black SVGs on transparent. The screen passes them as `ok-vector`; to view them, rasterise
+  with `qlmanage -t -s 900 -o <dir> *.svg` (macOS) or `rsvg-convert`. The board puts SVG/PNG on a white
+  panel so they stay visible in dark mode.
+- The collection skews mid-century European. It is excellent for reduced symbol logic, not for current
+  trends.
 
 ### Typewolf — typewolf.com — **reliable, web/type only**
 - Static HTML. `https://www.typewolf.com/site-of-the-day` lists `<img src="/assets/img/sotd/<date>.png"

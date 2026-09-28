@@ -78,6 +78,10 @@ fetch per site, not a crawl.
 - **Lazy-loaded images without `width`/`height` make CSS-columns masonry reflow** as you scroll. The
   generator writes dimensions from `screen.tsv`, so keep `w`/`h` in `refs.json`.
 - **`curl` inside `while read` eats stdin.** `</dev/null` is load-bearing.
+- **Black-on-transparent marks vanish on a dark board.** Logobook SVGs rendered invisible in dark mode
+  until the generator gave `.svg`/`.png` cards a white `.flat` panel. Check a logo board in dark mode.
+- **Not every board is 4:5 posters.** Logo runs mix SVG marks with photos of applications. Prefer the
+  image where the mark is the subject; storefronts and merch shots were most of the cuts in the coffee run.
 
 ## Committing
 

@@ -73,9 +73,12 @@ def ink_on(hex_):
     lum = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
     return "#111" if 0.2126 * lum(r) + 0.7152 * lum(g) + 0.0722 * lum(bb) > 0.45 else "#fff"
 
+def flat(r):   # SVG / PNG marks are often black on transparent: give them a white panel in both themes
+    return r["file"].lower().endswith((".svg", ".png"))
+
 def chips(ns):
     return "".join(
-        f'<a class="chip" href="#ref-{n}" title="{e(refs[n]["title"])}">'
+        f'<a class="chip{" flat" if flat(refs[n]) else ""}" href="#ref-{n}" title="{e(refs[n]["title"])}">'
         f'<img src="{e(refs[n]["file"])}" alt="" loading="lazy"><span>{n}</span></a>'
         for n in ns if n in refs)
 
@@ -99,7 +102,7 @@ def card(r):
     creator = (f'<a href="{e(r["creator_url"])}" target="_blank" rel="noopener">{e(r["creator"])}</a>'
                if r.get("creator_url") else e(r.get("creator") or "Creator not stated"))
     label = f'<p class="label">{e(r["label"])}</p>' if r.get("label") else ""
-    return (f'<figure class="card" id="ref-{r["n"]}"><a class="img" href="{e(r["file"])}" target="_blank">'
+    return (f'<figure class="card" id="ref-{r["n"]}"><a class="img{" flat" if flat(r) else ""}" href="{e(r["file"])}" target="_blank">'
             f'<img src="{e(r["file"])}" alt="{e(r.get("label") or r["title"])}"{dims(r)} loading="lazy"></a>'
             f'<figcaption><span class="n">{r["n"]}</span><div><h4>{e(r["title"])}</h4>'
             f'<p class="by">{creator}</p>{label}<p class="src">{e(r["source"])} · '
@@ -136,6 +139,8 @@ dl.pats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));g
 .chip img{{width:100%;height:100%;object-fit:cover;display:block}}
 .chip span{{position:absolute;left:3px;bottom:3px;font:700 10px/1 ui-monospace,Menlo,monospace;background:var(--ink);color:var(--bg);padding:3px 4px;border-radius:2px}}
 .chip:hover,.chip:focus-visible{{outline:2px solid var(--accent)}}
+.chip.flat{{background:#fff}}.chip.flat img{{object-fit:contain;padding:6px}}
+.card .img.flat{{background:#fff;padding:10%}}
 .two{{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px}}
 ul.pal{{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}}
 .sw{{display:flex;align-items:flex-end;height:92px;border-radius:4px;padding:8px;font:600 12px/1 ui-monospace,Menlo,monospace;box-shadow:inset 0 0 0 1px rgba(128,128,128,.25)}}
